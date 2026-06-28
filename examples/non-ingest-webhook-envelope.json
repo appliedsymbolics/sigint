@@ -1,0 +1,17 @@
+{
+  "event_id": "33333333-4444-4555-8666-777777777777",
+  "event_type": "example.webhook",
+  "event_name": "order_created",
+  "event_version": "v1",
+  "occurred_at": "2026-06-10T12:00:00Z",
+  "sent_at": "2026-06-10T12:00:02Z",
+  "subject_type": "order",
+  "subject_id": "ORD-1001",
+  "aggregate_type": "order",
+  "aggregate_id": "ORD-1001",
+  "correlation_id": "corr-order-1001",
+  "payload": {
+    "order_id": "ORD-1001",
+    "status": "created"
+  }
+}

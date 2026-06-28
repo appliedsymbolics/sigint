@@ -1,0 +1,11 @@
+.git
+.github
+bin
+tmp
+var
+.air.toml
+.env
+.envrc
+.kit
+*.out
+coverage.*

@@ -1,0 +1,27 @@
+{
+  "event_id": "3ee6c93d-1f50-4e65-a867-f2f998be9ada",
+  "event_name": "example.order.created",
+  "event_version": "1.0",
+  "producer_service": "example-service",
+  "producer_instance": "local-dev-1",
+  "producer_deployment": "local",
+  "occurred_at": "2026-04-30T12:00:00Z",
+  "observed_at": "2026-04-30T12:00:01Z",
+  "partition_id": "example-account",
+  "subject_type": "order",
+  "subject_id": "ORD-001",
+  "aggregate_type": "order",
+  "aggregate_id": "ORD-001",
+  "correlation_id": "corr-001",
+  "causation_id": "cmd-001",
+  "actor": {
+    "type": "user",
+    "id": "user-001"
+  },
+  "payload": {
+    "order_id": "ORD-001",
+    "status": "created"
+  },
+  "payload_sha256": "e115e781afebb0afae51c4f7b6b4225c851ffb0a60292ac735c8c2e7887ea937",
+  "event_sha256": "4ad2a47ca6b2690eb052cf3dcedb97f0482b0c808e034c006fbb99859514f265"
+}

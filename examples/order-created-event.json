@@ -1,0 +1,29 @@
+{
+  "event_id": "11111111-2222-4333-8444-555555555555",
+  "event_name": "example.order.created",
+  "event_version": "1.0",
+  "producer_service": "orders-service",
+  "producer_instance": "orders-local-1",
+  "producer_deployment": "local",
+  "occurred_at": "2026-06-10T12:00:00Z",
+  "observed_at": "2026-06-10T12:00:01Z",
+  "partition_id": "example-account",
+  "subject_type": "order",
+  "subject_id": "ORD-1001",
+  "aggregate_type": "order",
+  "aggregate_id": "ORD-1001",
+  "correlation_id": "corr-order-1001",
+  "causation_id": "cmd-create-order-1001",
+  "actor": {
+    "type": "user",
+    "id": "user-1001"
+  },
+  "payload": {
+    "order_id": "ORD-1001",
+    "status": "created",
+    "total_cents": 4299,
+    "currency": "USD"
+  },
+  "payload_sha256": "41c7681a8c062e343c65b299b09751dbd74324f777d99cada10845f21c75b6c2",
+  "event_sha256": "6c3106706ed9b86c74a97308164c3e1704883a2038ee2d4832c520230e2cb156"
+}

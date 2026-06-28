@@ -1,0 +1,29 @@
+{
+  "event_id": "22222222-3333-4444-8555-666666666666",
+  "event_name": "example.inventory.adjusted",
+  "event_version": "1.0",
+  "producer_service": "inventory-service",
+  "producer_instance": "inventory-local-1",
+  "producer_deployment": "local",
+  "occurred_at": "2026-06-10T12:05:00Z",
+  "observed_at": "2026-06-10T12:05:01Z",
+  "partition_id": "example-account",
+  "subject_type": "sku",
+  "subject_id": "SKU-1001",
+  "aggregate_type": "inventory_item",
+  "aggregate_id": "SKU-1001",
+  "correlation_id": "corr-order-1001",
+  "causation_id": "evt-order-created-1001",
+  "actor": {
+    "type": "service",
+    "id": "inventory-service"
+  },
+  "payload": {
+    "sku": "SKU-1001",
+    "delta": -1,
+    "reason": "order_created",
+    "available_after": 24
+  },
+  "payload_sha256": "408bfe21916d13b5302f0d70dd2eb28ab6e20858378a699db9447cb92d227542",
+  "event_sha256": "1781eb515ce5200190485a6e592ac3ad370fdca9de2c1d7de74b2b4402be2b9d"
+}

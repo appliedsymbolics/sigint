@@ -1,0 +1,30 @@
+server:
+  host: 0.0.0.0
+  port: 8920
+
+ledger:
+  adapter: postgres
+  dsn: ${SIGINT_POSTGRES_DSN}
+
+storage:
+  adapter: s3
+  bucket: ${SIGINT_S3_BUCKET}
+  prefix: raw
+  region: ${SIGINT_AWS_REGION}
+  endpoint: ${SIGINT_S3_ENDPOINT}
+  force_path_style: true
+  server_side_encryption: ${SIGINT_S3_SERVER_SIDE_ENCRYPTION}
+  kms_key_id: ${SIGINT_S3_KMS_KEY_ID}
+
+ingest:
+  reject_hash_conflicts: true
+  require_payload_hash: true
+  require_event_hash: true
+
+replay:
+  default_limit: 100
+  max_limit: 1000
+
+auth:
+  producer_token_env: SIGINT_PRODUCER_TOKEN
+  internal_token_env: SIGINT_INTERNAL_TOKEN

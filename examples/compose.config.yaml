@@ -1,0 +1,16 @@
+server:
+  host: 0.0.0.0
+  port: 8920
+
+ledger:
+  adapter: sqlite
+  path: /app/var/ingest.sqlite
+
+storage:
+  adapter: filesystem
+  root: /app/var/event-lake
+
+ingest:
+  reject_hash_conflicts: true
+  require_payload_hash: true
+  require_event_hash: true
