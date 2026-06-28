@@ -329,3 +329,21 @@ Skip spec updates only for purely mechanical changes such as formatting, typo fi
 - Idempotency: Handling duplicate inputs without duplicating durable effects.
 - Feature artifact: The canonical `SPEC.md` or legacy staged document representing a feature's highest completed development phase.
 - Highest completed artifact: The most advanced verified phase or document state for a feature, as reflected in `docs/PROJECT_PROGRESS_SUMMARY.md`.
+
+
+## CONSTRAINTS
+
+<!-- TODO: define invariant rules that must never be violated -->
+
+### Kit-Managed Baseline Rules
+
+<!-- BEGIN KIT-MANAGED BASELINE RULES -->
+- Treat `docs/CONSTITUTION.md` as the canonical project contract.
+- Keep `AGENTS.md`, `CLAUDE.md`, and `.github/copilot-instructions.md` aligned with the repo-local docs tree.
+- Prefer implementation/source code files around 300 lines or less when splitting improves clarity and ownership.
+- Do not apply the code-file size guideline to documentation files, all `docs/**`, all `.kit/**`, or `.kit.yaml`.
+- Do not split or rewrite docs, generated state, or Kit config artifacts solely because they exceed 300 lines.
+<!-- END KIT-MANAGED BASELINE RULES -->
+## NON-GOALS
+
+<!-- TODO: define what this project explicitly will not do -->

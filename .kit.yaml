@@ -5,7 +5,7 @@ constitution_path: docs/CONSTITUTION.md
 allow_out_of_order: false
 loop:
     min_confidence: 95
-    max_iterations: 10
+    max_iterations: 20
     agent:
         command: codex
         args:
@@ -39,7 +39,7 @@ registry:
           path: docs/references/rules/github-pr-delivery.md
           source_repo: jamesonstone/kit
           source_branch: main
-          source_commit: 4594d6bfe27665da60e3018b400dd1d823d46010
+          source_commit: 259bbf2db1337f4387e953ed404a9b03c240e1c4
           source_path: docs/references/rules/github-pr-delivery.md
           installed_hash: sha256:fa5d23f67b544d14aab17e7e63c48d5726289483178b2619a2b6ee1b8ce4bd54
           state: managed
@@ -48,7 +48,7 @@ registry:
           path: docs/references/rules/kit-capabilities-usage.md
           source_repo: jamesonstone/kit
           source_branch: main
-          source_commit: 4594d6bfe27665da60e3018b400dd1d823d46010
+          source_commit: 259bbf2db1337f4387e953ed404a9b03c240e1c4
           source_path: docs/references/rules/kit-capabilities-usage.md
           installed_hash: sha256:322bb2d28b0c5d75d2fdad86d628bf6c7e719662f213b2557b0401897d4bb64f
           state: managed
@@ -57,7 +57,7 @@ registry:
           path: docs/references/rules/llms-txt.md
           source_repo: jamesonstone/kit
           source_branch: main
-          source_commit: 4594d6bfe27665da60e3018b400dd1d823d46010
+          source_commit: 259bbf2db1337f4387e953ed404a9b03c240e1c4
           source_path: docs/references/rules/llms-txt.md
           installed_hash: sha256:4aaa326493395e357b1cd28ed2dda4c2c454e0fe7fa31fffdeea753bd6fb5884
           state: managed
@@ -66,7 +66,7 @@ registry:
           path: docs/references/rules/safety-guardrails.md
           source_repo: jamesonstone/kit
           source_branch: main
-          source_commit: 4594d6bfe27665da60e3018b400dd1d823d46010
+          source_commit: 259bbf2db1337f4387e953ed404a9b03c240e1c4
           source_path: docs/references/rules/safety-guardrails.md
           installed_hash: sha256:224ac020a7312dc1a862d8ee285f820b1ae66d1381dc8f870b709fd8832ebc42
           state: managed
@@ -75,7 +75,11 @@ registry:
           path: docs/references/rules/work-lane-gating.md
           source_repo: jamesonstone/kit
           source_branch: main
-          source_commit: 4594d6bfe27665da60e3018b400dd1d823d46010
+          source_commit: 259bbf2db1337f4387e953ed404a9b03c240e1c4
           source_path: docs/references/rules/work-lane-gating.md
           installed_hash: sha256:7bd18273b06425a7809a315378acc147c745d6966e9f92399c0143d92539ae76
           state: managed
+project_refresh:
+    constitution:
+        feature_interval: 5
+        max_age_days: 30
