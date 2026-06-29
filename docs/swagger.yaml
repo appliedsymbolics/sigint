@@ -1,0 +1,438 @@
+basePath: /
+definitions:
+  controller.batchResponse:
+    properties:
+      results:
+        items:
+          $ref: '#/definitions/controller.ingestResponse'
+        type: array
+    type: object
+  controller.ingestResponse:
+    properties:
+      event_id:
+        type: string
+      message:
+        type: string
+      received_at:
+        type: string
+      status:
+        type: string
+      storage_uri:
+        type: string
+      stored_at:
+        type: string
+    type: object
+  controller.recordResponse:
+    properties:
+      event_id:
+        type: string
+      event_name:
+        type: string
+      event_sha256:
+        type: string
+      event_version:
+        type: string
+      last_error:
+        type: string
+      partition_id:
+        type: string
+      payload_sha256:
+        type: string
+      producer_service:
+        type: string
+      raw_envelope:
+        type: object
+      received_at:
+        type: string
+      status:
+        type: string
+      storage_uri:
+        type: string
+      stored_at:
+        type: string
+      subject_id:
+        type: string
+      subject_type:
+        type: string
+    type: object
+  events.Actor:
+    properties:
+      id:
+        type: string
+      type:
+        type: string
+    type: object
+  events.BatchRequest:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/events.Envelope'
+        type: array
+    type: object
+  events.Envelope:
+    properties:
+      actor:
+        $ref: '#/definitions/events.Actor'
+      aggregate_id:
+        type: string
+      aggregate_type:
+        type: string
+      causation_id:
+        type: string
+      correlation_id:
+        type: string
+      event_id:
+        type: string
+      event_name:
+        type: string
+      event_sha256:
+        type: string
+      event_version:
+        type: string
+      observed_at:
+        type: string
+      occurred_at:
+        type: string
+      partition_id:
+        type: string
+      payload:
+        additionalProperties: {}
+        type: object
+      payload_sha256:
+        type: string
+      producer_deployment:
+        type: string
+      producer_instance:
+        type: string
+      producer_service:
+        type: string
+      subject_id:
+        type: string
+      subject_type:
+        type: string
+    type: object
+  events.ReplayEvent:
+    properties:
+      actor_id:
+        type: string
+      actor_type:
+        type: string
+      aggregate_id:
+        type: string
+      aggregate_type:
+        type: string
+      causation_id:
+        type: string
+      correlation_id:
+        type: string
+      cursor:
+        type: integer
+      event_id:
+        type: string
+      event_name:
+        type: string
+      event_sha256:
+        type: string
+      event_version:
+        type: string
+      observed_at:
+        type: string
+      occurred_at:
+        type: string
+      partition_id:
+        type: string
+      payload_sha256:
+        type: string
+      producer_deployment:
+        type: string
+      producer_instance:
+        type: string
+      producer_service:
+        type: string
+      raw_envelope_json:
+        type: string
+      received_at:
+        type: string
+      status:
+        type: string
+      storage_uri:
+        type: string
+      stored_at:
+        type: string
+      subject_id:
+        type: string
+      subject_type:
+        type: string
+    type: object
+  events.ReplayPage:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/events.ReplayEvent'
+        type: array
+      limit:
+        type: integer
+      next_cursor:
+        type: integer
+    type: object
+host: localhost:8920
+info:
+  contact:
+    name: Applied Symbolics
+  description: Generic events ingest service for durable event envelopes.
+  title: sigint API
+  version: 0.1.0
+paths:
+  /healthz:
+    get:
+      description: reports process liveness without checking configured backends
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: health check
+      tags:
+      - health
+  /internal/v1/events/replay:
+    get:
+      description: replays stored events in ingest order using an exclusive cursor
+      parameters:
+      - description: Exclusive replay cursor
+        in: query
+        name: after_cursor
+        type: string
+      - description: Maximum events to return
+        in: query
+        name: limit
+        type: integer
+      - description: Producer service filter
+        in: query
+        name: producer_service
+        type: string
+      - description: Event name filter
+        in: query
+        name: event_name
+        type: string
+      - description: Subject type filter
+        in: query
+        name: subject_type
+        type: string
+      - description: Subject id filter
+        in: query
+        name: subject_id
+        type: string
+      - description: Aggregate type filter
+        in: query
+        name: aggregate_type
+        type: string
+      - description: Aggregate id filter
+        in: query
+        name: aggregate_id
+        type: string
+      - description: Correlation id filter
+        in: query
+        name: correlation_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/events.ReplayPage'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "410":
+          description: Gone
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: replay stored events
+      tags:
+      - internal
+  /llms.txt:
+    get:
+      description: Returns a concise Markdown index for agents and LLM clients.
+      produces:
+      - text/markdown
+      responses:
+        "200":
+          description: Markdown service index
+          schema:
+            type: string
+      summary: LLM service index
+      tags:
+      - docs
+  /readyz:
+    get:
+      description: reports configured ledger and storage readiness
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: readiness check
+      tags:
+      - health
+  /v1/events:
+    post:
+      consumes:
+      - application/json
+      description: validates canonical hashes, writes the raw archive, and records
+        ingest state
+      parameters:
+      - description: Event envelope
+        in: body
+        name: event
+        required: true
+        schema:
+          $ref: '#/definitions/events.Envelope'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.ingestResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ingest one event
+      tags:
+      - events
+  /v1/events/{event_id}:
+    get:
+      description: returns the ingest ledger record and raw envelope for one event
+        id
+      parameters:
+      - description: Event ID
+        in: path
+        name: event_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.recordResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: get one event
+      tags:
+      - events
+  /v1/events:batch:
+    post:
+      consumes:
+      - application/json
+      description: validates and ingests 1 to 1000 event envelopes, returning one
+        result per event
+      parameters:
+      - description: Event batch
+        in: body
+        name: batch
+        required: true
+        schema:
+          $ref: '#/definitions/events.BatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.batchResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Unprocessable Entity
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: ingest a batch of events
+      tags:
+      - events
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: Optional bearer token for producer ingest and internal replay routes.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

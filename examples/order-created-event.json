@@ -1,0 +1,29 @@
+{
+  "event_id": "11111111-2222-4333-8444-555555555555",
+  "event_name": "example.event.received",
+  "event_version": "1.0",
+  "producer_service": "events-ingest-service",
+  "producer_instance": "events-ingest-local-1",
+  "producer_deployment": "local",
+  "occurred_at": "2026-06-10T12:00:00Z",
+  "observed_at": "2026-06-10T12:00:01Z",
+  "partition_id": "example-tenant",
+  "subject_type": "signal",
+  "subject_id": "SIG-1001",
+  "aggregate_type": "event_stream",
+  "aggregate_id": "stream-1001",
+  "correlation_id": "corr-event-1001",
+  "causation_id": "cmd-capture-event-1001",
+  "actor": {
+    "type": "user",
+    "id": "user-1001"
+  },
+  "payload": {
+    "entity_id": "entity-1001",
+    "state": "received",
+    "value": 42,
+    "unit": "count"
+  },
+  "payload_sha256": "f5ec4c456372c60e57f710a5378696cdd0bf37c541dfdba326bf72f5ff3b709a",
+  "event_sha256": "7f2ce7d44a070d12a081ac2335d323a4c6dad85d7e950a17dc05626717a67ade"
+}

@@ -1,0 +1,57 @@
+name: sigint-local
+
+services:
+  sigint:
+    build:
+      context: .
+    container_name: sigint
+    environment:
+      SIGINT_ENV: ${SIGINT_ENV:-}
+    ports:
+      - "${SIGINT_PORT:-8920}:8920"
+    volumes:
+      - sigint-var:/app/var
+      - ./examples/compose.config.yaml:/app/config/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/sigint", "server", "status", "--url", "http://127.0.0.1:8920/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    container_name: sigint-postgres
+    environment:
+      POSTGRES_DB: ${SIGINT_POSTGRES_DB:-sigint}
+      POSTGRES_USER: ${SIGINT_POSTGRES_USER:-sigint}
+      POSTGRES_PASSWORD: ${SIGINT_POSTGRES_PASSWORD:-sigint}
+    ports:
+      - "${SIGINT_POSTGRES_PORT:-54329}:5432"
+    volumes:
+      - sigint-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  localstack:
+    image: localstack/localstack:3
+    profiles: ["localstack"]
+    container_name: sigint-localstack
+    environment:
+      SERVICES: s3
+      AWS_DEFAULT_REGION: ${SIGINT_AWS_REGION:-us-east-1}
+      DEBUG: ${LOCALSTACK_DEBUG:-0}
+    ports:
+      - "${SIGINT_LOCALSTACK_PORT:-4566}:4566"
+    volumes:
+      - sigint-localstack:/var/lib/localstack
+
+volumes:
+  sigint-var:
+  sigint-postgres:
+  sigint-localstack:

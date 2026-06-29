@@ -1,0 +1,40 @@
+root = "."
+testdata_dir = "testdata"
+tmp_dir = "tmp"
+
+[build]
+  args_bin = ["server", "start", "--config", "examples/config.local.yaml"]
+  bin = "./bin/sigint"
+  cmd = "make build"
+  delay = 1000
+  exclude_dir = ["assets", "bin", "tmp", "vendor", "var", "testdata"]
+  exclude_regex = ["_test.go"]
+  follow_symlink = false
+  include_dir = ["cmd", "internal", "examples"]
+  include_ext = ["go", "yaml", "yml", "json"]
+  include_file = ["go.mod", "go.sum", "Makefile"]
+  kill_delay = "0s"
+  log = "build-errors.log"
+  poll = false
+  pre_cmd = []
+  rerun = false
+  send_interrupt = true
+  stop_on_error = false
+
+[color]
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[log]
+  main_only = false
+  silent = false
+  time = false
+
+[misc]
+  clean_on_exit = false
+
+[screen]
+  clear_on_rebuild = false
+  keep_scroll = true

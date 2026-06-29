@@ -1,0 +1,135 @@
+name: main
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-west-2' }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+  IMAGE_NAME: ${{ vars.IMAGE_NAME || 'appliedsymbolics/sigint' }}
+  DOCKER_PLATFORM: linux/amd64
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+
+      - name: Run checks
+        run: make check
+
+      - name: Validate Compose
+        run: docker compose config --services
+
+  publish:
+    name: release, build, and push
+    needs: check
+    if: github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch && vars.PUBLISH_IMAGE == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-publish
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Refresh Git tags
+        run: git fetch --tags --force
+
+      - name: Publish Mint release state
+        id: release
+        uses: jamesonstone/mint@v0.1.1
+        with:
+          command: release-publish
+          commitish: ${{ github.sha }}
+          owner: ${{ github.repository_owner }}
+          repo: ${{ github.event.repository.name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Select image tag
+        id: image
+        shell: bash
+        env:
+          MINT_TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          MINT_RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          version_tag="${MINT_TAG_NAME:-$MINT_RELEASE_TAG}"
+          if [ -z "$version_tag" ]; then
+            echo "::error::Mint did not return tag_name or release_tag."
+            exit 1
+          fi
+
+          echo "tag=$version_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_PUBLISH_ROLE_TO_ASSUME }}
+
+      - name: Verify AWS account
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "$AWS_ACCOUNT_ID" ]; then
+            echo "::error::AWS_ACCOUNT_ID must be configured when PUBLISH_IMAGE=true."
+            exit 1
+          fi
+
+          actual_account_id="$(aws sts get-caller-identity --query Account --output text)"
+          if [ "$actual_account_id" != "$AWS_ACCOUNT_ID" ]; then
+            echo "::error::AWS account mismatch: expected $AWS_ACCOUNT_ID, got $actual_account_id."
+            exit 1
+          fi
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push sigint
+        shell: bash
+        env:
+          VERSION_TAG: ${{ steps.image.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$ECR_REGISTRY" ]; then
+            echo "::error::ECR_REGISTRY must be configured when PUBLISH_IMAGE=true."
+            exit 1
+          fi
+
+          tag_args=()
+          for image_tag in "$VERSION_TAG" latest; do
+            tag_args+=(--tag "$ECR_REGISTRY/$IMAGE_NAME:$image_tag")
+          done
+
+          docker buildx build \
+            --platform "$DOCKER_PLATFORM" \
+            --file Dockerfile \
+            --push \
+            "${tag_args[@]}" \
+            .
