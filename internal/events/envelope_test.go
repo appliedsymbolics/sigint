@@ -20,13 +20,13 @@ func TestDecodeEnvelopeAcceptsGenericCollectorFixtures(t *testing.T) {
 	}{
 		{
 			name:            "order-created-event.json",
-			producerService: "orders-service",
-			eventName:       "example.order.created",
+			producerService: "events-ingest-service",
+			eventName:       "example.event.received",
 		},
 		{
 			name:            "inventory-adjusted-event.json",
-			producerService: "inventory-service",
-			eventName:       "example.inventory.adjusted",
+			producerService: "events-ingest-service",
+			eventName:       "example.event.processed",
 		},
 	} {
 		t.Run(fixture.name, func(t *testing.T) {
@@ -67,10 +67,10 @@ func TestDecodeBatchAcceptsCollectorFixtureBatch(t *testing.T) {
 	}
 }
 
-func TestDecodeEnvelopeRejectsNonIngestWebhookEnvelopeFixture(t *testing.T) {
+func TestDecodeEnvelopeRejectsNonIngestEnvelopeFixture(t *testing.T) {
 	_, err := events.DecodeEnvelope(bytes.NewReader(readExampleFixture(t, "non-ingest-webhook-envelope.json")))
 	if err == nil {
-		t.Fatal("expected webhook envelope to fail collector decoding")
+		t.Fatal("expected non-ingest envelope to fail collector decoding")
 	}
 	if !strings.Contains(err.Error(), "unknown field") {
 		t.Fatalf("expected unknown field error, got %v", err)
@@ -121,6 +121,41 @@ func TestDecodeEnvelopeRejectsPathSeparatorInEventName(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "path separators") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDecodeEnvelopeRejectsUnsafeProducerService(t *testing.T) {
+	for name, tc := range map[string]struct {
+		value   string
+		wantErr string
+	}{
+		"slash": {
+			value:   "bad/name",
+			wantErr: "path separators",
+		},
+		"backslash": {
+			value:   `bad\name`,
+			wantErr: "path separators",
+		},
+		"parent_directory_marker": {
+			value:   " .. ",
+			wantErr: "path traversal",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			raw := testsupport.EventMap(t, map[string]any{"producer_service": tc.value})
+			data, err := json.Marshal(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = events.DecodeEnvelope(bytes.NewReader(data))
+			if err == nil {
+				t.Fatal("expected validation error")
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("expected %q error, got %v", tc.wantErr, err)
+			}
+		})
 	}
 }
 

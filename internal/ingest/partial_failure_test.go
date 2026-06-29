@@ -47,6 +47,38 @@ func TestArchiveFirstRetryRepairsAfterLedgerInsertFailure(t *testing.T) {
 	}
 }
 
+func TestGetEventWrapsLedgerFailure(t *testing.T) {
+	ctx := context.Background()
+	ledger := newFakeLedger()
+	ledger.getErrors = []error{errors.New("postgres unavailable")}
+	storage := newFakeArchiveStorage(false)
+	service := ingest.NewService(ledger, storage, config.Default().Ingest)
+
+	_, err := service.GetEvent(ctx, "3ee6c93d-1f50-4e65-a867-f2f998be9ada")
+	var ledgerErr ingest.LedgerError
+	if !errors.As(err, &ledgerErr) {
+		t.Fatalf("expected ledger error, got %T %v", err, err)
+	}
+}
+
+func TestDefaultInsertFailureWrapsLedgerFailure(t *testing.T) {
+	ctx := context.Background()
+	ledger := newFakeLedger()
+	ledger.insertErrors = []error{errors.New("postgres unavailable")}
+	storage := newFakeArchiveStorage(false)
+	service := ingest.NewService(ledger, storage, config.Default().Ingest)
+	envelope := decode(t, testsupport.EventMap(t, nil))
+
+	_, err := service.Ingest(ctx, envelope)
+	var ledgerErr ingest.LedgerError
+	if !errors.As(err, &ledgerErr) {
+		t.Fatalf("expected ledger error, got %T %v", err, err)
+	}
+	if storage.writeCount != 0 {
+		t.Fatalf("default ingest should not archive after insert failure, got %d writes", storage.writeCount)
+	}
+}
+
 func TestArchiveFirstRetryWithChangedContentAfterLedgerInsertFailureConflicts(t *testing.T) {
 	ctx := context.Background()
 	ledger := newFakeLedger()
@@ -140,6 +172,30 @@ func TestStorageContentConflictIsReturnedAsHashConflict(t *testing.T) {
 	var conflict ingest.HashConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("expected storage conflict to stay immutable conflict, got %T %v", err, err)
+	}
+	if ledger.records[envelope.NormalizedEventID()].Status != "received" {
+		t.Fatalf("storage conflict should not mark ledger failed: %+v", ledger.records[envelope.NormalizedEventID()])
+	}
+}
+
+func TestStorageContentConflictCanReturnNonErrorHashConflict(t *testing.T) {
+	ctx := context.Background()
+	ledger := newFakeLedger()
+	storage := newFakeArchiveStorage(true)
+	cfg := config.Default().Ingest
+	cfg.RejectHashConflicts = false
+	service := ingest.NewService(ledger, storage, cfg)
+	envelope := decode(t, testsupport.EventMap(t, nil))
+	raw := canonicalText(t, envelope)
+	ledger.records[envelope.NormalizedEventID()] = fakeRecordFromEnvelope(envelope, raw, "received")
+	storage.objects[envelope.NormalizedEventID()] = "{}"
+
+	result, err := service.Ingest(ctx, envelope)
+	if err != nil {
+		t.Fatalf("expected non-error hash conflict, got %T %v", err, err)
+	}
+	if result.Status != "hash_conflict" {
+		t.Fatalf("expected hash_conflict status, got %s", result.Status)
 	}
 	if ledger.records[envelope.NormalizedEventID()].Status != "received" {
 		t.Fatalf("storage conflict should not mark ledger failed: %+v", ledger.records[envelope.NormalizedEventID()])

@@ -44,6 +44,29 @@ storage:
 	}
 }
 
+func TestInitializeLedgerCreatesSQLiteSchema(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	cfg := config.Ledger{
+		Adapter: "sqlite",
+		Path:    filepath.Join(t.TempDir(), "data", "ingest.sqlite"),
+	}
+
+	if err := InitializeLedger(ctx, cfg); err != nil {
+		t.Fatalf("InitializeLedger returned error: %v", err)
+	}
+
+	eventLedger, closeLedger, err := newLedger(ctx, cfg)
+	if err != nil {
+		t.Fatalf("open initialized ledger: %v", err)
+	}
+	defer func() { _ = closeLedger() }()
+	if !eventLedger.IsReady(ctx) {
+		t.Fatal("expected initialized ledger schema to be ready")
+	}
+}
+
 func TestNewServiceRejectsUnsupportedLedgerAdapter(t *testing.T) {
 	t.Parallel()
 

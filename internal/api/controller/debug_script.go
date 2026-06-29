@@ -50,14 +50,9 @@ function renderEvent(item, index) {
   const batch = source.batch_index === undefined ? "" : " #" + source.batch_index;
   const detailsOpen = expanded ? " open" : "";
   const sentAt = formatTimestamp(item.streamed_at);
-  const webhookDelivery = isWebhookDeliveryAttempt(item);
-  const eventClass = webhookDelivery ? "event event-webhook-delivery" : "event";
-  const eventBadge = webhookDelivery
-    ? '<span class="event-kind event-kind-webhook">Webhook delivery</span>'
-    : "";
-  return '<article class="' + eventClass + '"><div class="event-top"><div><span class="event-name">' +
+  return '<article class="event"><div class="event-top"><div><span class="event-name">' +
     escapeHTML(item.event_name || event.event_name || "unnamed event") +
-    '</span>' + eventBadge + '<span class="event-id">' + escapeHTML(item.event_id || event.event_id || "missing event_id") +
+    '</span><span class="event-id">' + escapeHTML(item.event_id || event.event_id || "missing event_id") +
     '</span></div><div class="event-meta"><div class="event-time"><span class="event-time-label">sent at</span><span class="event-time-value">' +
     escapeHTML(sentAt) +
     '</span></div><button class="event-copy" type="button" data-index="' + index + '">Copy event JSON</button></div></div>' +
@@ -68,14 +63,6 @@ function renderEvent(item, index) {
     chip("streamed", shortTime(item.streamed_at)) +
     '</div><details' + detailsOpen + '><summary>Envelope JSON</summary><pre>' +
     escapeHTML(JSON.stringify(event, null, 2)) + '</pre></details></article>';
-}
-
-function isWebhookDeliveryAttempt(item) {
-  const event = item.event || {};
-  const payload = event.payload || {};
-  const eventName = item.event_name || event.event_name || "";
-  return eventName === "webhook.delivery_attempted" ||
-    payload.debug_event_kind === "webhook_delivery";
 }
 
 function renderEmpty(title, body) {

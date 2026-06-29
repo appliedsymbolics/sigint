@@ -12,6 +12,7 @@ import (
 
 type fakeLedger struct {
 	records      map[string]events.EventRecord
+	getErrors    []error
 	insertErrors []error
 	attempts     []string
 }
@@ -29,6 +30,11 @@ func (f *fakeLedger) IsReady(ctx context.Context) bool {
 }
 
 func (f *fakeLedger) GetEvent(ctx context.Context, eventID string) (*events.EventRecord, error) {
+	if len(f.getErrors) > 0 {
+		err := f.getErrors[0]
+		f.getErrors = f.getErrors[1:]
+		return nil, err
+	}
 	record, ok := f.records[eventID]
 	if !ok {
 		return nil, nil

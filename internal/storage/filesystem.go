@@ -55,23 +55,35 @@ func (f *Filesystem) IsReady() bool {
 }
 
 func (f *Filesystem) WriteRawEvent(envelope events.Envelope, rawEnvelopeJSON string) (string, error) {
-	finalPath := f.pathFor(envelope)
-	if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
+	guardPath := f.eventIDGuardPathFor(envelope)
+	guardCreated, err := writeFileIfAbsent(guardPath, rawEnvelopeJSON)
+	if err != nil {
 		return "", err
 	}
 
-	if existing, err := os.ReadFile(finalPath); err == nil {
-		if string(existing) == rawEnvelopeJSON {
-			return fileURI(finalPath)
+	finalPath := f.pathFor(envelope)
+	if _, err := writeFileIfAbsent(finalPath, rawEnvelopeJSON); err != nil {
+		if guardCreated {
+			removeFileIfContentMatches(guardPath, rawEnvelopeJSON)
 		}
-		return "", ConflictError{Message: "Storage object already exists with different content: " + finalPath}
-	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", err
+	}
+	return fileURI(finalPath)
+}
+
+func writeFileIfAbsent(finalPath string, content string) (bool, error) {
+	if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
+		return false, err
+	}
+	if err := confirmExistingFile(finalPath, content); err == nil {
+		return false, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, err
 	}
 
 	tmp, err := os.CreateTemp(filepath.Dir(finalPath), "."+filepath.Base(finalPath)+".*.tmp")
 	if err != nil {
-		return "", err
+		return false, err
 	}
 	tmpName := tmp.Name()
 	cleanup := true
@@ -81,22 +93,43 @@ func (f *Filesystem) WriteRawEvent(envelope events.Envelope, rawEnvelopeJSON str
 		}
 	}()
 
-	if _, err := tmp.WriteString(rawEnvelopeJSON); err != nil {
+	if _, err := tmp.WriteString(content); err != nil {
 		_ = tmp.Close()
-		return "", err
+		return false, err
 	}
 	if err := tmp.Sync(); err != nil {
 		_ = tmp.Close()
-		return "", err
+		return false, err
 	}
 	if err := tmp.Close(); err != nil {
-		return "", err
+		return false, err
 	}
-	if err := os.Rename(tmpName, finalPath); err != nil {
-		return "", err
+	if err := os.Link(tmpName, finalPath); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return false, confirmExistingFile(finalPath, content)
+		}
+		return false, err
 	}
 	cleanup = false
-	return fileURI(finalPath)
+	_ = os.Remove(tmpName)
+	return true, nil
+}
+
+func confirmExistingFile(path string, content string) error {
+	existing, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if string(existing) != content {
+		return ConflictError{Message: "Storage object already exists with different content: " + path}
+	}
+	return nil
+}
+
+func removeFileIfContentMatches(path string, content string) {
+	if err := confirmExistingFile(path, content); err == nil {
+		_ = os.Remove(path)
+	}
 }
 
 func (f *Filesystem) ConfirmRawEvent(envelope events.Envelope, rawEnvelopeJSON string) (string, error) {
@@ -109,6 +142,13 @@ func (f *Filesystem) ConfirmRawEvent(envelope events.Envelope, rawEnvelopeJSON s
 		return "", ConflictError{Message: "Storage object already exists with different content: " + finalPath}
 	}
 	return fileURI(finalPath)
+}
+
+func (f *Filesystem) eventIDGuardPathFor(envelope events.Envelope) string {
+	return filepath.Join(
+		f.rawRoot,
+		"event_id="+safeSegment(envelope.NormalizedEventID())+".json",
+	)
 }
 
 func (f *Filesystem) pathFor(envelope events.Envelope) string {

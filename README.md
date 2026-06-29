@@ -1,6 +1,20 @@
-# sigint
+```text
+███████╗██╗ ██████╗
+██╔════╝██║██╔════╝
+███████╗██║██║  ███╗
+╚════██║██║██║   ██║
+███████║██║╚██████╔╝
+╚══════╝╚═╝ ╚═════╝
 
-> Events in, durable facts out.
+██╗███╗   ██╗████████╗
+██║████╗  ██║╚══██╔══╝
+██║██╔██╗ ██║   ██║
+██║██║╚██╗██║   ██║
+██║██║ ╚████║   ██║
+╚═╝╚═╝  ╚═══╝   ╚═╝
+
+                                      events in, durable facts out
+```
 
 `sigint` is a Go API and CLI for collecting immutable event facts, validating their hashes, storing the raw envelope, replaying accepted events, and giving operators a boring set of knobs that work locally and in production-like environments.
 

@@ -41,7 +41,6 @@ definitions:
       producer_service:
         type: string
       raw_envelope:
-        additionalProperties: {}
         type: object
       received_at:
         type: string

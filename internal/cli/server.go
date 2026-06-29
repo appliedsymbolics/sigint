@@ -21,6 +21,12 @@ import (
 	"github.com/appliedsymbolics/sigint/internal/config"
 )
 
+const (
+	backgroundReadinessTimeout     = 30 * time.Second
+	backgroundReadinessPoll        = 200 * time.Millisecond
+	backgroundReadinessHTTPTimeout = 6 * time.Second
+)
+
 func serverCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "server",
@@ -206,7 +212,23 @@ func startBackground(cmd *cobra.Command, configPath, host string, port int, pidF
 	if err := child.Start(); err != nil {
 		return err
 	}
+	exited := make(chan error, 1)
+	go func() {
+		exited <- child.Wait()
+	}()
+
+	url := "http://" + net.JoinHostPort(host, strconv.Itoa(port))
+	if err := waitForBackgroundReadiness(cmd.Context(), url+"/readyz", exited); err != nil {
+		if !isBackgroundExitError(err) {
+			terminateBackgroundProcess(child.Process, exited)
+		}
+		return fmt.Errorf("%w; see log file %s", err, logFile)
+	}
+	if err := pollBackgroundExit(exited); err != nil {
+		return fmt.Errorf("%w; see log file %s", err, logFile)
+	}
 	if err := os.WriteFile(pidFile, []byte(strconv.Itoa(child.Process.Pid)), 0o644); err != nil {
+		terminateBackgroundProcess(child.Process, exited)
 		return err
 	}
 	return writeJSON(cmd, map[string]any{
@@ -214,6 +236,95 @@ func startBackground(cmd *cobra.Command, configPath, host string, port int, pidF
 		"pid":      child.Process.Pid,
 		"pid_file": pidFile,
 		"log_file": logFile,
-		"url":      "http://" + net.JoinHostPort(host, strconv.Itoa(port)),
+		"url":      url,
 	})
+}
+
+func waitForBackgroundReadiness(parent context.Context, readinessURL string, exited <-chan error) error {
+	ctx, cancel := context.WithTimeout(parent, backgroundReadinessTimeout)
+	defer cancel()
+
+	client := http.Client{Timeout: backgroundReadinessHTTPTimeout}
+	ticker := time.NewTicker(backgroundReadinessPoll)
+	defer ticker.Stop()
+
+	for {
+		if err := pollBackgroundExit(exited); err != nil {
+			return err
+		}
+		if backgroundReady(ctx, &client, readinessURL) {
+			return nil
+		}
+		if err := pollBackgroundExit(exited); err != nil {
+			return err
+		}
+
+		select {
+		case err := <-exited:
+			return backgroundExitError{err: err}
+		case <-ctx.Done():
+			return fmt.Errorf("server did not become ready at %s within %s", readinessURL, backgroundReadinessTimeout)
+		case <-ticker.C:
+		}
+	}
+}
+
+func backgroundReady(ctx context.Context, client *http.Client, readinessURL string) bool {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, readinessURL, nil)
+	if err != nil {
+		return false
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return false
+	}
+	defer response.Body.Close()
+	_, _ = io.Copy(io.Discard, response.Body)
+	return response.StatusCode >= 200 && response.StatusCode < 300
+}
+
+func pollBackgroundExit(exited <-chan error) error {
+	select {
+	case err := <-exited:
+		return backgroundExitError{err: err}
+	default:
+		return nil
+	}
+}
+
+type backgroundExitError struct {
+	err error
+}
+
+func (e backgroundExitError) Error() string {
+	if e.err == nil {
+		return "server exited before readiness"
+	}
+	return "server exited before readiness: " + e.err.Error()
+}
+
+func (e backgroundExitError) Unwrap() error {
+	return e.err
+}
+
+func isBackgroundExitError(err error) bool {
+	var exitErr backgroundExitError
+	return errors.As(err, &exitErr)
+}
+
+func terminateBackgroundProcess(process *os.Process, exited <-chan error) {
+	if process == nil {
+		return
+	}
+	_ = process.Signal(syscall.SIGTERM)
+	select {
+	case <-exited:
+		return
+	case <-time.After(5 * time.Second):
+		_ = process.Kill()
+	}
+	select {
+	case <-exited:
+	default:
+	}
 }

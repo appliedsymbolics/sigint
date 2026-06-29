@@ -27,6 +27,12 @@ func (e *Envelope) Validate() error {
 	if err := validateString("producer_service", e.ProducerService, 1, 128); err != nil {
 		return err
 	}
+	if strings.ContainsAny(e.ProducerService, `/\`) {
+		return errors.New("producer_service must not contain path separators")
+	}
+	if strings.Contains(strings.TrimSpace(e.ProducerService), "..") {
+		return errors.New("producer_service must not contain path traversal sequences")
+	}
 	if err := validateOptionalString("producer_instance", e.ProducerInstance, 256); err != nil {
 		return err
 	}

@@ -96,13 +96,14 @@ func TestLoadProductionConfigExpandsEnvironmentPlaceholders(t *testing.T) {
 	}
 }
 
-func TestLoadRejectsUnsupportedAdapterCombinations(t *testing.T) {
+func TestLoadRejectsUnknownConfigKeys(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 	err := os.WriteFile(path, []byte(`
 ledger:
-  adapter: postgres
-  dsn: postgres://sigint:secret@127.0.0.1:5432/sigint
+  adapter: sqlite
+  path: ./ingest.sqlite
+  timeout: 30s
 storage:
   adapter: filesystem
   root: ./event-lake
@@ -112,10 +113,121 @@ storage:
 	}
 	_, err = config.Load(path)
 	if err == nil {
-		t.Fatal("expected unsupported adapter combination error")
+		t.Fatal("expected unknown config key error")
 	}
-	if !strings.Contains(err.Error(), "postgres ledger requires s3 storage") {
+	if !strings.Contains(err.Error(), "field timeout not found") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadLedgerUsesStrictLedgerKeysWithoutValidatingStorage(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`
+ledger:
+  adapter: sqlite
+  path: ./ingest.sqlite
+storage:
+  adapter: filesystem
+`), 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledger, err := config.LoadLedger(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ledger.Path != filepath.Join(dir, "ingest.sqlite") {
+		t.Fatalf("unexpected ledger path: %s", ledger.Path)
+	}
+
+	unknownPath := filepath.Join(dir, "unknown.yaml")
+	err = os.WriteFile(unknownPath, []byte(`
+ledger:
+  adapter: sqlite
+  path: ./ingest.sqlite
+  timeout: 30s
+storage:
+  adapter: filesystem
+`), 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = config.LoadLedger(unknownPath)
+	if err == nil {
+		t.Fatal("expected unknown ledger key error")
+	}
+	if !strings.Contains(err.Error(), "field timeout not found") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLoadAllowsIndependentLedgerAndStorageAdapters(t *testing.T) {
+	tests := []struct {
+		name           string
+		body           string
+		wantLedger     string
+		wantStorage    string
+		wantLedgerPath bool
+		wantStorageDir bool
+	}{
+		{
+			name: "postgres ledger with filesystem storage",
+			body: `
+ledger:
+  adapter: postgres
+  dsn: postgres://sigint:secret@127.0.0.1:5432/sigint
+storage:
+  adapter: filesystem
+  root: ./event-lake
+`,
+			wantLedger:     "postgres",
+			wantStorage:    "filesystem",
+			wantStorageDir: true,
+		},
+		{
+			name: "sqlite ledger with s3 storage",
+			body: `
+ledger:
+  adapter: sqlite
+  path: ./ingest.sqlite
+storage:
+  adapter: s3
+  bucket: sigint-local
+  region: us-east-1
+`,
+			wantLedger:     "sqlite",
+			wantStorage:    "s3",
+			wantLedgerPath: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "config.yaml")
+			err := os.WriteFile(path, []byte(tt.body), 0o644)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			cfg, err := config.Load(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.Ledger.Adapter != tt.wantLedger {
+				t.Fatalf("unexpected ledger adapter: %s", cfg.Ledger.Adapter)
+			}
+			if cfg.Storage.Adapter != tt.wantStorage {
+				t.Fatalf("unexpected storage adapter: %s", cfg.Storage.Adapter)
+			}
+			if tt.wantLedgerPath && cfg.Ledger.Path != filepath.Join(dir, "ingest.sqlite") {
+				t.Fatalf("unexpected ledger path: %s", cfg.Ledger.Path)
+			}
+			if tt.wantStorageDir && cfg.Storage.Root != filepath.Join(dir, "event-lake") {
+				t.Fatalf("unexpected storage root: %s", cfg.Storage.Root)
+			}
+		})
 	}
 }
 

@@ -13,24 +13,15 @@ import (
 	"github.com/appliedsymbolics/sigint/internal/testsupport"
 )
 
-func TestDBInitUsesConfiguredLocalRuntime(t *testing.T) {
+func TestDBInitInitializesLedgerOnly(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "sigint.yaml")
 	writeCLIConfig(t, configPath, `
-server:
-  host: 127.0.0.1
-  port: 8920
 ledger:
   adapter: sqlite
   path: ./data/ingest.sqlite
-storage:
-  adapter: filesystem
-  root: ./archive
-replay:
-  default_limit: 1
-  max_limit: 1
 	`)
 
 	cmd := NewRootCommand()

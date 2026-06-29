@@ -83,17 +83,10 @@ func (s *S3) IsReady() bool {
 
 func (s *S3) WriteRawEvent(envelope events.Envelope, rawEnvelopeJSON string) (string, error) {
 	key := s.keyFor(envelope)
-	if err := s.confirmEventIDGuardIfPresent(envelope, rawEnvelopeJSON); err != nil {
-		return "", err
-	}
-	uri, err := s.writeObjectAtKey(key, envelope, rawEnvelopeJSON)
-	if err != nil {
-		return "", err
-	}
 	if err := s.writeEventIDGuard(envelope, rawEnvelopeJSON); err != nil {
 		return "", err
 	}
-	return uri, nil
+	return s.writeObjectAtKey(key, envelope, rawEnvelopeJSON)
 }
 
 func (s *S3) writeObjectAtKey(key string, envelope events.Envelope, rawEnvelopeJSON string) (string, error) {
@@ -159,21 +152,6 @@ func (s *S3) readRawEventAtKey(key string) (string, error) {
 		return "", fmt.Errorf("read s3 object body %s: %w", key, err)
 	}
 	return string(data), nil
-}
-
-func (s *S3) confirmEventIDGuardIfPresent(envelope events.Envelope, rawEnvelopeJSON string) error {
-	key := s.eventIDGuardKeyFor(envelope)
-	existing, err := s.readRawEventAtKey(key)
-	if err != nil {
-		if isObjectMissingError(err) {
-			return nil
-		}
-		return err
-	}
-	if existing != rawEnvelopeJSON {
-		return ConflictError{Message: "Storage object already exists with different content: s3://" + s.options.Bucket + "/" + key}
-	}
-	return nil
 }
 
 func (s *S3) writeEventIDGuard(envelope events.Envelope, rawEnvelopeJSON string) error {
@@ -246,19 +224,6 @@ func isObjectAlreadyExistsError(err error) bool {
 	}
 	switch apiErr.ErrorCode() {
 	case "PreconditionFailed", "ConditionalRequestConflict":
-		return true
-	default:
-		return false
-	}
-}
-
-func isObjectMissingError(err error) bool {
-	var apiErr smithy.APIError
-	if !errors.As(err, &apiErr) {
-		return false
-	}
-	switch apiErr.ErrorCode() {
-	case "NoSuchKey", "NotFound":
 		return true
 	default:
 		return false

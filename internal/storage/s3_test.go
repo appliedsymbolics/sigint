@@ -41,9 +41,17 @@ func TestS3WriteRawEventUsesDeterministicKeyAndHeaders(t *testing.T) {
 		t.Fatal("event_id guard object was not written")
 	}
 	if len(client.putInputs) != 2 {
-		t.Fatalf("expected archive and guard puts, got %d", len(client.putInputs))
+		t.Fatalf("expected guard and archive puts, got %d", len(client.putInputs))
 	}
-	assertContextHasDeadline(t, client.getContexts[0])
+	if aws.ToString(client.putInputs[0].Key) != expectedGuardKey {
+		t.Fatalf("expected event_id guard to be claimed first, got %s", aws.ToString(client.putInputs[0].Key))
+	}
+	if aws.ToString(client.putInputs[1].Key) != expectedKey {
+		t.Fatalf("expected archive object to be written second, got %s", aws.ToString(client.putInputs[1].Key))
+	}
+	if len(client.getContexts) != 0 {
+		t.Fatalf("new event write should not read before claiming guard, got %d reads", len(client.getContexts))
+	}
 	assertContextHasDeadline(t, client.putContexts[0])
 	assertContextHasDeadline(t, client.putContexts[1])
 	input := client.putInputs[0]

@@ -47,6 +47,18 @@ func NewService(ctx context.Context, cfg config.App) (*ServiceHandle, error) {
 	}, nil
 }
 
+func InitializeLedger(ctx context.Context, cfg config.Ledger) error {
+	eventLedger, closeLedger, err := newLedger(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = closeLedger() }()
+	if err := eventLedger.Initialize(ctx); err != nil {
+		return fmt.Errorf("initialize ledger: %w", err)
+	}
+	return nil
+}
+
 func (h *ServiceHandle) Close() error {
 	if h == nil || h.close == nil {
 		return nil

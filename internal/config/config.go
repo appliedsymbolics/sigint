@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,7 +78,7 @@ func Load(path string) (App, error) {
 	}
 
 	cfg := Default()
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := decodeKnownFields(data, &cfg); err != nil {
 		return App{}, fmt.Errorf("invalid YAML config: %s: %w", configPath, err)
 	}
 	if err := cfg.expandEnv(); err != nil {
@@ -94,6 +96,54 @@ func Load(path string) (App, error) {
 		cfg.Storage.Root = resolvePath(cfg.Storage.Root, baseDir)
 	}
 	return cfg, nil
+}
+
+func LoadLedger(path string) (Ledger, error) {
+	configPath, err := filepath.Abs(path)
+	if err != nil {
+		return Ledger{}, err
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return Ledger{}, fmt.Errorf("config file does not exist: %s", configPath)
+	}
+
+	cfg := struct {
+		Server    yaml.Node `yaml:"server"`
+		Ledger    Ledger    `yaml:"ledger"`
+		Storage   yaml.Node `yaml:"storage"`
+		Ingest    yaml.Node `yaml:"ingest"`
+		Replay    yaml.Node `yaml:"replay"`
+		Retention yaml.Node `yaml:"retention"`
+		Auth      yaml.Node `yaml:"auth"`
+	}{
+		Ledger: Default().Ledger,
+	}
+	if err := decodeKnownFields(data, &cfg); err != nil {
+		return Ledger{}, fmt.Errorf("invalid YAML config: %s: %w", configPath, err)
+	}
+	cfg.Ledger.Path = os.ExpandEnv(cfg.Ledger.Path)
+	cfg.Ledger.DSN = os.ExpandEnv(cfg.Ledger.DSN)
+	app := App{Ledger: cfg.Ledger}
+	if err := app.validateLedger(); err != nil {
+		return Ledger{}, err
+	}
+	if cfg.Ledger.Adapter == "sqlite" {
+		cfg.Ledger.Path = resolvePath(cfg.Ledger.Path, filepath.Dir(configPath))
+	}
+	return cfg.Ledger, nil
+}
+
+func decodeKnownFields(data []byte, target any) error {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(target); err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return errors.New("config file must contain exactly one YAML document")
+	}
+	return nil
 }
 
 func Default() App {
@@ -139,12 +189,6 @@ func (a App) validate() error {
 	}
 	if err := a.validateStorage(); err != nil {
 		return err
-	}
-	if a.Ledger.Adapter == "sqlite" && a.Storage.Adapter != "filesystem" {
-		return errors.New("sqlite ledger requires filesystem storage")
-	}
-	if a.Ledger.Adapter == "postgres" && a.Storage.Adapter != "s3" {
-		return errors.New("postgres ledger requires s3 storage")
 	}
 	if a.Replay.DefaultLimit < 1 {
 		return errors.New("replay.default_limit must be at least 1")

@@ -106,11 +106,11 @@ func newService(t *testing.T) (*ingest.Service, func()) {
 func TestIngestCollectorFixturesStoreDuplicateReplayAndConflict(t *testing.T) {
 	service, closeService := newService(t)
 	defer closeService()
-	orderFixture := fixtureMap(t, "order-created-event.json")
-	orderEnvelope := decode(t, orderFixture)
-	inventoryEnvelope := decodeFixture(t, "inventory-adjusted-event.json")
+	firstFixture := fixtureMap(t, "order-created-event.json")
+	firstEnvelope := decode(t, firstFixture)
+	secondEnvelope := decodeFixture(t, "inventory-adjusted-event.json")
 
-	first, err := service.Ingest(context.Background(), orderEnvelope)
+	first, err := service.Ingest(context.Background(), firstEnvelope)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestIngestCollectorFixturesStoreDuplicateReplayAndConflict(t *testing.T) {
 		t.Fatalf("expected stored, got %s", first.Status)
 	}
 
-	duplicate, err := service.Ingest(context.Background(), orderEnvelope)
+	duplicate, err := service.Ingest(context.Background(), firstEnvelope)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,11 +126,11 @@ func TestIngestCollectorFixturesStoreDuplicateReplayAndConflict(t *testing.T) {
 		t.Fatalf("expected duplicate, got %s", duplicate.Status)
 	}
 
-	if _, err := service.Ingest(context.Background(), inventoryEnvelope); err != nil {
+	if _, err := service.Ingest(context.Background(), secondEnvelope); err != nil {
 		t.Fatal(err)
 	}
 
-	stored, err := service.GetEvent(context.Background(), orderEnvelope.NormalizedEventID())
+	stored, err := service.GetEvent(context.Background(), firstEnvelope.NormalizedEventID())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,9 +146,9 @@ func TestIngestCollectorFixturesStoreDuplicateReplayAndConflict(t *testing.T) {
 		t.Fatalf("expected 2 replay events, got %d", len(page.Events))
 	}
 
-	conflictFixture := copyFixtureMap(orderFixture)
+	conflictFixture := copyFixtureMap(firstFixture)
 	payload := copyFixtureMap(conflictFixture["payload"].(map[string]any))
-	payload["status"] = "updated"
+	payload["state"] = "updated"
 	conflictFixture["payload"] = payload
 	refreshFixtureHashes(t, conflictFixture)
 	_, err = service.Ingest(context.Background(), decode(t, conflictFixture))

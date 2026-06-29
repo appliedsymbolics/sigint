@@ -64,7 +64,11 @@ func (s *Service) StorageReady() bool {
 }
 
 func (s *Service) GetEvent(ctx context.Context, eventID string) (*events.EventRecord, error) {
-	return s.ledger.GetEvent(ctx, eventID)
+	record, err := s.ledger.GetEvent(ctx, eventID)
+	if err != nil {
+		return nil, LedgerError{Message: "get event: " + err.Error()}
+	}
+	return record, nil
 }
 
 func (s *Service) ReplayEvents(ctx context.Context, query events.EventQuery) (events.ReplayPage, error) {
@@ -98,7 +102,7 @@ func (s *Service) Ingest(ctx context.Context, envelope events.Envelope) (events.
 
 	existing, err := s.ledger.GetEvent(ctx, eventID)
 	if err != nil {
-		return events.IngestResult{}, err
+		return events.IngestResult{}, LedgerError{Message: "get event: " + err.Error()}
 	}
 	if existing != nil {
 		return s.handleExisting(ctx, *existing, envelope, rawEnvelopeJSON)
@@ -109,7 +113,9 @@ func (s *Service) Ingest(ctx context.Context, envelope events.Envelope) (events.
 
 	record, err := s.ledger.InsertReceived(ctx, envelope, rawEnvelopeJSON)
 	if err != nil {
-		return events.IngestResult{}, err
+		message := "insert received: " + err.Error()
+		_ = s.ledger.RecordAttempt(ctx, eventID, "failed", &message)
+		return events.IngestResult{}, LedgerError{Message: message}
 	}
 	if record.EventSHA256 != envelope.EventSHA256 {
 		return s.handleExisting(ctx, record, envelope, rawEnvelopeJSON)
@@ -178,9 +184,12 @@ func (s *Service) handleExisting(ctx context.Context, existing events.EventRecor
 
 func (s *Service) storeInsertAndMark(ctx context.Context, envelope events.Envelope, rawEnvelopeJSON string) (events.IngestResult, error) {
 	eventID := envelope.NormalizedEventID()
-	storageURI, err := s.writeRawEvent(ctx, envelope, rawEnvelopeJSON, false)
+	storageURI, conflictResult, err := s.writeRawEvent(ctx, envelope, rawEnvelopeJSON, false)
 	if err != nil {
 		return events.IngestResult{}, err
+	}
+	if conflictResult != nil {
+		return *conflictResult, nil
 	}
 
 	record, err := s.ledger.InsertReceived(ctx, envelope, rawEnvelopeJSON)
@@ -207,30 +216,41 @@ func (s *Service) storeInsertAndMark(ctx context.Context, envelope events.Envelo
 
 func (s *Service) storeAndMark(ctx context.Context, envelope events.Envelope, rawEnvelopeJSON string) (events.IngestResult, error) {
 	eventID := envelope.NormalizedEventID()
-	storageURI, err := s.writeRawEvent(ctx, envelope, rawEnvelopeJSON, true)
+	storageURI, conflictResult, err := s.writeRawEvent(ctx, envelope, rawEnvelopeJSON, true)
 	if err != nil {
 		return events.IngestResult{}, err
+	}
+	if conflictResult != nil {
+		return *conflictResult, nil
 	}
 	return s.markStored(ctx, eventID, storageURI)
 }
 
-func (s *Service) writeRawEvent(ctx context.Context, envelope events.Envelope, rawEnvelopeJSON string, markFailed bool) (string, error) {
+func (s *Service) writeRawEvent(ctx context.Context, envelope events.Envelope, rawEnvelopeJSON string, markFailed bool) (string, *events.IngestResult, error) {
 	eventID := envelope.NormalizedEventID()
 	storageURI, err := s.storage.WriteRawEvent(envelope, rawEnvelopeJSON)
 	if err == nil {
-		return storageURI, nil
+		return storageURI, nil, nil
 	}
 	message := err.Error()
 	var storageConflict eventstorage.ConflictError
 	if errors.As(err, &storageConflict) {
 		_ = s.ledger.RecordAttempt(ctx, eventID, "hash_conflict", &message)
-		return "", HashConflictError{Message: message}
+		if s.config.RejectHashConflicts {
+			return "", nil, HashConflictError{Message: message}
+		}
+		return "", &events.IngestResult{
+			EventID:    eventID,
+			Status:     "hash_conflict",
+			ReceivedAt: envelope.ReceivedFallback(),
+			Message:    &message,
+		}, nil
 	}
 	_ = s.ledger.RecordAttempt(ctx, eventID, "failed", &message)
 	if markFailed {
 		_, _ = s.ledger.MarkFailed(ctx, eventID, message)
 	}
-	return "", StorageError{Message: message}
+	return "", nil, StorageError{Message: message}
 }
 
 func (s *Service) markStored(ctx context.Context, eventID string, storageURI string) (events.IngestResult, error) {

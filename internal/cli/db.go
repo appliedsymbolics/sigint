@@ -17,18 +17,16 @@ func dbCommand() *cobra.Command {
 		Use:   "init",
 		Short: "Initialize the configured ingest ledger.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(configPath)
+			ledgerConfig, err := config.LoadLedger(configPath)
 			if err != nil {
 				return err
 			}
-			handle, err := eventruntime.NewService(cmd.Context(), cfg)
-			if err != nil {
+			if err := eventruntime.InitializeLedger(cmd.Context(), ledgerConfig); err != nil {
 				return err
 			}
-			defer func() { _ = handle.Close() }()
-			response := map[string]any{"status": "initialized", "ledger_adapter": cfg.Ledger.Adapter}
-			if cfg.Ledger.Adapter == "sqlite" {
-				response["ledger"] = cfg.Ledger.Path
+			response := map[string]any{"status": "initialized", "ledger_adapter": ledgerConfig.Adapter}
+			if ledgerConfig.Adapter == "sqlite" {
+				response["ledger"] = ledgerConfig.Path
 			}
 			return writeJSON(cmd, response)
 		},

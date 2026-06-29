@@ -452,8 +452,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "raw_envelope": {
-                    "type": "object",
-                    "additionalProperties": {}
+                    "type": "object"
                 },
                 "received_at": {
                     "type": "string"

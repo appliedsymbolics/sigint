@@ -84,10 +84,14 @@ func NewRouter(options Options) Runtime {
 	internalRoutes.GET("/events/replay", ctrl.ReplayEvents)
 
 	if options.Debug {
-		router.GET("/debug", ctrl.DebugPage)
-		router.GET("/debug/history", ctrl.DebugHistory)
-		router.DELETE("/debug/history", ctrl.DebugClearHistory)
-		router.GET("/debug/stream", ctrl.DebugStream)
+		debugRoutes := router.Group("/debug")
+		if token := debugAuthToken(options.Auth); token != "" {
+			debugRoutes.Use(requireBearerToken(token))
+		}
+		debugRoutes.GET("", ctrl.DebugPage)
+		debugRoutes.GET("/history", ctrl.DebugHistory)
+		debugRoutes.DELETE("/history", ctrl.DebugClearHistory)
+		debugRoutes.GET("/stream", ctrl.DebugStream)
 	}
 
 	return Runtime{Router: router, Bus: bus}
@@ -141,6 +145,13 @@ func validBearerToken(header string, expectedToken string) bool {
 	providedHash := sha256.Sum256([]byte(parts[1]))
 	expectedHash := sha256.Sum256([]byte(expectedToken))
 	return subtle.ConstantTimeCompare(providedHash[:], expectedHash[:]) == 1
+}
+
+func debugAuthToken(auth AuthOptions) string {
+	if auth.InternalToken != "" {
+		return auth.InternalToken
+	}
+	return auth.ProducerToken
 }
 
 func formatRequestLog(param gin.LogFormatterParams) string {

@@ -4,8 +4,7 @@ on:
   push:
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-west-2' }}
@@ -42,6 +41,9 @@ jobs:
     concurrency:
       group: release-publish
       cancel-in-progress: false
+    permissions:
+      contents: write
+      id-token: write
 
     steps:
       - name: Checkout

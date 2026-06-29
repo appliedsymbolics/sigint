@@ -1,11 +1,15 @@
 package api_test
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/appliedsymbolics/sigint/internal/api"
+	"github.com/appliedsymbolics/sigint/internal/events"
+	"github.com/appliedsymbolics/sigint/internal/ingest"
 	"github.com/appliedsymbolics/sigint/internal/testsupport"
 )
 
@@ -116,6 +120,21 @@ func TestBatchReturnsPerEventValidationFailures(t *testing.T) {
 	}
 }
 
+func TestBatchMapsWrappedHashConflictErrors(t *testing.T) {
+	runtime := api.NewRouter(api.Options{Service: wrappedHashConflictService{}})
+	event := testsupport.EventMap(t, nil)
+
+	body := assertJSON(t, runtime.Router, "POST", "/v1/events:batch", map[string]any{"events": []any{event}}, http.StatusOK)
+	results := body["results"].([]any)
+	if len(results) != 1 {
+		t.Fatalf("expected one result, got %+v", results)
+	}
+	result := results[0].(map[string]any)
+	if result["status"] != "hash_conflict" {
+		t.Fatalf("expected hash_conflict result for wrapped error, got %+v", result)
+	}
+}
+
 func TestProducerBearerAuthProtectsIngestRoutes(t *testing.T) {
 	router, closeService := newRouterWithAuth(t, false, api.AuthOptions{ProducerToken: "producer-secret"})
 	defer closeService()
@@ -180,4 +199,26 @@ func TestOpenAPIMarksAuthCapableRoutesWithBearerSecurity(t *testing.T) {
 			t.Fatalf("%s %s missing security requirement", route.method, route.path)
 		}
 	}
+}
+
+type wrappedHashConflictService struct{}
+
+func (wrappedHashConflictService) LedgerReady(ctx context.Context) bool {
+	return true
+}
+
+func (wrappedHashConflictService) StorageReady() bool {
+	return true
+}
+
+func (wrappedHashConflictService) Ingest(ctx context.Context, envelope events.Envelope) (events.IngestResult, error) {
+	return events.IngestResult{}, fmt.Errorf("wrapped: %w", ingest.HashConflictError{Message: "event hash conflict"})
+}
+
+func (wrappedHashConflictService) GetEvent(ctx context.Context, eventID string) (*events.EventRecord, error) {
+	return nil, nil
+}
+
+func (wrappedHashConflictService) ReplayEvents(ctx context.Context, query events.EventQuery) (events.ReplayPage, error) {
+	return events.ReplayPage{}, nil
 }

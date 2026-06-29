@@ -21,21 +21,21 @@ type batchResponse struct {
 }
 
 type recordResponse struct {
-	EventID       string         `json:"event_id"`
-	EventName     string         `json:"event_name"`
-	EventVersion  string         `json:"event_version"`
-	ProducerSvc   string         `json:"producer_service"`
-	PartitionID   *string        `json:"partition_id"`
-	SubjectType   *string        `json:"subject_type"`
-	SubjectID     *string        `json:"subject_id"`
-	PayloadSHA256 string         `json:"payload_sha256"`
-	EventSHA256   string         `json:"event_sha256"`
-	Status        string         `json:"status"`
-	StorageURI    *string        `json:"storage_uri"`
-	ReceivedAt    time.Time      `json:"received_at"`
-	StoredAt      *time.Time     `json:"stored_at"`
-	LastError     *string        `json:"last_error"`
-	RawEnvelope   map[string]any `json:"raw_envelope"`
+	EventID       string          `json:"event_id"`
+	EventName     string          `json:"event_name"`
+	EventVersion  string          `json:"event_version"`
+	ProducerSvc   string          `json:"producer_service"`
+	PartitionID   *string         `json:"partition_id"`
+	SubjectType   *string         `json:"subject_type"`
+	SubjectID     *string         `json:"subject_id"`
+	PayloadSHA256 string          `json:"payload_sha256"`
+	EventSHA256   string          `json:"event_sha256"`
+	Status        string          `json:"status"`
+	StorageURI    *string         `json:"storage_uri"`
+	ReceivedAt    time.Time       `json:"received_at"`
+	StoredAt      *time.Time      `json:"stored_at"`
+	LastError     *string         `json:"last_error"`
+	RawEnvelope   json.RawMessage `json:"raw_envelope" swaggertype:"object"`
 }
 
 func responseFromResult(result events.IngestResult) ingestResponse {
@@ -50,8 +50,9 @@ func responseFromResult(result events.IngestResult) ingestResponse {
 }
 
 func responseFromRecord(record events.EventRecord) (recordResponse, error) {
-	var raw map[string]any
-	if err := json.Unmarshal([]byte(record.RawEnvelopeJSON), &raw); err != nil {
+	raw := json.RawMessage(record.RawEnvelopeJSON)
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &object); err != nil {
 		return recordResponse{}, err
 	}
 	return recordResponse{

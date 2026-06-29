@@ -137,12 +137,12 @@ func (c *Controller) IngestBatch(ctx *gin.Context) {
 			results = append(results, responseFromResult(result))
 			continue
 		}
-		switch err.(type) {
-		case ingest.HashConflictError:
+		var conflict ingest.HashConflictError
+		if errors.As(err, &conflict) {
 			results = append(results, batchFailureResponse(envelope, rawEvent, "hash_conflict", err))
-		default:
-			results = append(results, batchFailureResponse(envelope, rawEvent, "failed", err))
+			continue
 		}
+		results = append(results, batchFailureResponse(envelope, rawEvent, "failed", err))
 	}
 	ctx.JSON(http.StatusOK, batchResponse{Results: results})
 }
