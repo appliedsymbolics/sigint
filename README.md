@@ -18,6 +18,10 @@
 
 `sigint` is a Go API and CLI for collecting immutable event facts, validating their hashes, storing the raw envelope, replaying accepted events, and giving operators a boring set of knobs that work locally and in production-like environments.
 
+<!-- BEGIN KIT-MANAGED README BADGES -->
+[![Last commit](https://img.shields.io/github/last-commit/appliedsymbolics/sigint)](https://github.com/appliedsymbolics/sigint/commits) [![Open issues](https://img.shields.io/github/issues/appliedsymbolics/sigint)](https://github.com/appliedsymbolics/sigint/issues) [![Pull requests](https://img.shields.io/github/issues-pr/appliedsymbolics/sigint)](https://github.com/appliedsymbolics/sigint/pulls) [![Release](https://img.shields.io/github/v/release/appliedsymbolics/sigint)](https://github.com/appliedsymbolics/sigint/releases)
+<!-- END KIT-MANAGED README BADGES -->
+
 It is a generic events ingest service with GORM persistence, SQLite for local use, PostgreSQL for production-shaped use, generated OpenAPI docs, standalone Docker Compose, and `sigint` / `SIGINT` naming everywhere.
 
 ## What This Service Owns
@@ -183,3 +187,7 @@ make smoke-production-profile
 ```
 
 The Postgres, LocalStack, and production-profile targets require Docker to be running.
+
+## Maintainers
+
+Maintained with 🪖 and ❤️ by [Jameson](https://github.com/jamesonstone) (`jamesonstone`).
