@@ -1,0 +1,15 @@
+schema_version: 2
+mode: artifact
+repository: appliedsymbolics/sigint
+default_branch: main
+authorization: repository-write
+build_workflow: .github/workflows/main.yaml
+# Declaration only: existing workflows retain their current behavior.
+# No runtime configuration, controller, observation adapter or baseline is activated.
+# ECR registry is supplied by repository variables; no unresolved URI is invented here.
+environments:
+  distribution:
+    scope: shared
+    deploy: manual
+    follow: latest
+    publish: true
