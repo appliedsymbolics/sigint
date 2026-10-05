@@ -2,7 +2,7 @@ schema_version: 2
 mode: artifact
 repository: appliedsymbolics/sigint
 default_branch: main
-human_login: jamesonstone
+authorization: repository-write
 build_workflow: .github/workflows/main.yaml
 # Declaration only: existing workflows retain their current behavior.
 # No runtime configuration, controller, observation adapter or baseline is activated.
