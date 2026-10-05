@@ -57,7 +57,7 @@ jobs:
 
       - name: Publish Mint release state
         id: release
-        uses: jamesonstone/mint@v0.1.1
+        uses: jamesonstone/mint@a435d0dd5bddeaec34f7523e344d093184fcabbf # v0.4.0
         with:
           command: release-publish
           commitish: ${{ github.sha }}
